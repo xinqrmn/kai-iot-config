@@ -13,7 +13,7 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
-app.post('/configs', async (req, res) => {
+app.post('api/configs', async (req, res) => {
     try {
         const configData = req.body;
 

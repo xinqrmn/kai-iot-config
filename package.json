@@ -1,7 +1,7 @@
 {
   "name": "kai-iot-configurator",
   "scripts": {
-    "dev": "concurrently \"npm run serve\" \"npm run client\"",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
     "client": "cd client && npm run dev",
     "server": "cd server && nodemon --experimental-modules src/index.js",
     "build": "cd client && npm run build",
