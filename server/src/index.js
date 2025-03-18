@@ -13,7 +13,7 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
-app.post('api/configs', async (req, res) => {
+app.post('/api/configs', async (req, res) => {
     try {
         const configData = req.body;
 
@@ -37,6 +37,10 @@ app.post('api/configs', async (req, res) => {
         res.status(500).json({error: e.message});
     }
 })
+
+app.get('/api/test', (req, res) => {
+    res.json({ message: 'Сервер работает!' });
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

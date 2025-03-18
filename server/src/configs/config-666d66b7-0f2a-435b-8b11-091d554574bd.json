@@ -1,0 +1,11 @@
+{
+  "deviceName": "цу",
+  "temperature": 2,
+  "humidity": 13,
+  "brokerUrl": "",
+  "topic": "",
+  "interval": 60,
+  "ipAddress": "",
+  "community": "public",
+  "version": "2c"
+}

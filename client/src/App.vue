@@ -30,7 +30,14 @@ const switchTab = (tab) => {
 
 const saveConfig = async () => {
   try {
-    const response = await axios.post("http://localhost:3000/api/configs", config);
+    const response = await axios.post("http://localhost:3000/api/configs",
+      config,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+    );
     console.log('Saved:', response.data);
     alert('Конфигурация успешно сохранена!');
   } catch (error) {
