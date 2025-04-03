@@ -27,7 +27,6 @@ app.post('/api/configs', async (req, res) => {
         const fileName = `config-${uuidv4()}.json`;
         const filePath = path.join(configDir, fileName);
         await fs.writeFile(filePath, JSON.stringify(configData, null, 2));
-
         res.json({
             status: 'success',
             path: filePath,
@@ -37,10 +36,6 @@ app.post('/api/configs', async (req, res) => {
         res.status(500).json({error: e.message});
     }
 })
-
-app.get('/api/test', (req, res) => {
-    res.json({ message: 'Сервер работает!' });
-});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
