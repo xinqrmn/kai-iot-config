@@ -48,13 +48,6 @@ const addDevice = () => {
   newDevice.deviceId = '';
   newDevice.deviceOID = '';
 
-  // Object.keys(newDevice).forEach(key => {
-  //   if (key !== 'deviceOID' && key !== 'deviceId' && newDevice[key].OID) {
-  //     const baseOID = newDevice.deviceOID;
-  //     const paramNum = Object.keys(newDevice).indexOf(key) - 1; // -1 для deviceOID и deviceId
-  //     newDevice[key].OID = `${baseOID}.${paramNum}`;
-  //   }
-  // });
 
   deviceParams.forEach((param) => {
     newDevice[param] = {...config.devices[0][param]};
