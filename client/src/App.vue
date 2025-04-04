@@ -1,5 +1,6 @@
 <script setup>
 import {ref, reactive} from 'vue';
+import stringify from "json-stringify-pretty-compact";
 
 const DATA_TYPES = ['INTEGER', 'GAUGE', 'COUNTER', 'TIMETICKS', 'IPADDRESS', 'OBJECTID', 'STRING'];
 
@@ -36,20 +37,30 @@ const config = reactive({
   }]
 });
 
+const deviceParams = Object.keys(config.devices[0]).filter(
+    key => !['deviceId', 'deviceOID'].includes(key)
+);
+
 const activeDeviceIndex = ref(0);
 
 const addDevice = () => {
   const newDevice = JSON.parse(JSON.stringify(config.devices[0]));
-  newDevice.deviceId = "";
-  newDevice.deviceOID = "";
+  newDevice.deviceId = '';
+  newDevice.deviceOID = '';
 
-  Object.keys(newDevice).forEach(key => {
-    if (key !== 'deviceOID' && key !== 'deviceId' && newDevice[key].OID) {
-      const baseOID = newDevice.deviceOID;
-      const paramNum = Object.keys(newDevice).indexOf(key) - 1;
-      newDevice[key].OID = `${baseOID}.${paramNum}`;
-    }
-  });
+  // Object.keys(newDevice).forEach(key => {
+  //   if (key !== 'deviceOID' && key !== 'deviceId' && newDevice[key].OID) {
+  //     const baseOID = newDevice.deviceOID;
+  //     const paramNum = Object.keys(newDevice).indexOf(key) - 1; // -1 для deviceOID и deviceId
+  //     newDevice[key].OID = `${baseOID}.${paramNum}`;
+  //   }
+  // });
+
+  deviceParams.forEach((param) => {
+    newDevice[param] = {...config.devices[0][param]};
+    const paramIndex = deviceParams.indexOf(param);
+    newDevice[param].OID = `${newDevice.deviceOID}.${paramIndex}`;
+  })
 
   config.devices.push(newDevice);
   activeDeviceIndex.value = config.devices.length - 1;
@@ -67,16 +78,24 @@ const removeDevice = (index) => {
 const saveConfig = () => {
   try {
     const output = [
-      {generalOID: config.generalOID},
-      ...config.devices.map(device => ({...device}))
+      {
+        generalOID: config.generalOID
+      },
+      ...config.devices.map(device => {
+        const deviceConfig = {
+          deviceId: device.deviceId,
+          deviceOID: device.deviceOID,
+        }
+
+        deviceParams.forEach((param) => {
+          deviceConfig[param] = {...device[param]};
+        })
+
+        return deviceConfig;
+      })
     ];
 
-    const jsonString = JSON.stringify(output, null, 2)
-        .replace(/\n\s+"/g, '\n  "')
-        .replace(/: {\n\s+/g, ': {')
-        .replace(/,\n\s+/g, ', ')
-        .replace(/\n\s+}/g, ' }');
-
+    const jsonString = stringify(output, {maxLength: 125})
     const blob = new Blob([jsonString], {type: 'application/json'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -151,14 +170,13 @@ const saveConfig = () => {
       <fieldset>
         <legend>Параметры устройства</legend>
         <div class="form-grid">
-          <div class="form-group" v-for="(param, key) in config.devices[activeDeviceIndex]"
-               v-if="key !== 'deviceOID' && key !== 'deviceId'">
-            <label>{{ key }}:</label>
+          <div class="form-group" v-for="param in deviceParams">
+            <label>{{ param }}:</label>
             <div class="param-control">
-              <select v-model="config.devices[activeDeviceIndex][key].type">
+              <select v-model="config.devices[activeDeviceIndex][param].type">
                 <option v-for="type in DATA_TYPES" :value="type">{{ type }}</option>
               </select>
-              <input v-model="config.devices[activeDeviceIndex][key].OID" type="number">
+              <input v-model="config.devices[activeDeviceIndex][param].OID" type="number">
             </div>
           </div>
         </div>
@@ -166,7 +184,6 @@ const saveConfig = () => {
     </div>
   </div>
 </template>
-
 
 <style scoped>
 :root {
