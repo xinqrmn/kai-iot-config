@@ -1,108 +1,109 @@
 <script setup>
 import {ref, reactive} from 'vue';
 import stringify from "json-stringify-pretty-compact";
+import {DEVICE_TYPES} from "./hooks/device-types.js";
 
 const DATA_TYPES = ['INTEGER', 'GAUGE', 'COUNTER', 'TIMETICKS', 'IPADDRESS', 'OBJECTID', 'STRING'];
 
 const config = reactive({
   generalOID: ".1.3.6.1.4.1.999",
-  devices: [{
-    deviceId: "3676ef20-e206-11ef-a67f-35241716acb1",
-    deviceOID: "1.3.6.1.2.1.999",
-    dateTime: {type: "INTEGER", OID: 0},
-    voltageCoef: {type: "INTEGER", OID: 0},
-    currentCoef: {type: "INTEGER", OID: 0},
-    voltagePhaseA: {type: "INTEGER", OID: 0},
-    voltagePhaseB: {type: "INTEGER", OID: 0},
-    voltagePhaseC: {type: "INTEGER", OID: 0},
-    currentPhaseA: {type: "INTEGER", OID: 0},
-    currentPhaseB: {type: "INTEGER", OID: 0},
-    currentPhaseC: {type: "INTEGER", OID: 0},
-    totalActivePower: {type: "INTEGER", OID: 0},
-    activePowerPhaseA: {type: "INTEGER", OID: 0},
-    activePowerPhaseB: {type: "INTEGER", OID: 0},
-    activePowerPhaseC: {type: "INTEGER", OID: 0},
-    totalReactivePower: {type: "INTEGER", OID: 0},
-    reactivePowerPhaseA: {type: "INTEGER", OID: 0},
-    reactivePowerPhaseB: {type: "INTEGER", OID: 0},
-    reactivePowerPhaseC: {type: "INTEGER", OID: 0},
-    totalApparentPower: {type: "INTEGER", OID: 0},
-    apparentPowerPhaseA: {type: "INTEGER", OID: 0},
-    apparentPowerPhaseB: {type: "INTEGER", OID: 0},
-    apparentPowerPhaseC: {type: "INTEGER", OID: 0},
-    powerFactor: {type: "INTEGER", OID: 0},
-    frequency: {type: "INTEGER", OID: 0},
-    energyActive: {type: "INTEGER", OID: 0},
-    energyReactive: {type: "INTEGER", OID: 0}
-  }]
+  devices: []
 });
 
-const deviceParams = Object.keys(config.devices[0]).filter(
-    key => !['deviceId', 'deviceOID'].includes(key)
-);
+const activeDeviceIndex = ref(-1);
+const newDeviceType = ref('CONDITIONER');
+const deviceTypeMap = ref(new Map());
 
-const activeDeviceIndex = ref(0);
+const createDeviceTemplate = type => {
+  const device = {
+    deviceID: '',
+    deviceOID: ''
+  }
 
-const addDevice = () => {
-  const newDevice = JSON.parse(JSON.stringify(config.devices[0]));
-  newDevice.deviceId = '';
-  newDevice.deviceOID = '';
-
-
-  deviceParams.forEach((param) => {
-    newDevice[param] = {...config.devices[0][param]};
-    const paramIndex = deviceParams.indexOf(param);
-    newDevice[param].OID = `${newDevice.deviceOID}.${paramIndex}`;
+  DEVICE_TYPES[type].params.forEach(param => {
+    device[param] = {type: 'INTEGER', OID: 0};
   })
 
-  config.devices.push(newDevice);
+  return device;
+}
+
+const addDevice = () => {
+  const newDevice = createDeviceTemplate(newDeviceType.value)
+  config.devices.push(newDevice)
+  deviceTypeMap.value.set(config.devices.length - 1, newDeviceType.value)
   activeDeviceIndex.value = config.devices.length - 1;
 };
 
 const removeDevice = (index) => {
   if (config.devices.length <= 1) return;
-  config.devices.splice(index, 1);
 
-  if (activeDeviceIndex.value >= index) {
-    activeDeviceIndex.value = Math.max(0, activeDeviceIndex.value - 1);
-  }
+  const deletedDevice = config.devices.splice(index, 1)[0];
+  const newMap = new Map()
+
+  config.devices.forEach((device, newIndex) => {
+    const oldIndex = newIndex >= index ? newIndex + 1 : newIndex;
+    if (deviceTypeMap.value.has(oldIndex)) {
+      newMap.set(newIndex, deviceTypeMap.value.get(oldIndex));
+    }
+  })
+
+  deviceTypeMap.value = newMap;
+
+  activeDeviceIndex.value = Math.min(
+      Math.max(0, activeDeviceIndex.value - 1),
+      config.devices.length - 1
+  );
 };
+
+const updateOIDs = (device, index) => {
+  const type = deviceTypeMap.value.get(index);
+  DEVICE_TYPES[type].params.forEach((param, i) => {
+    device[param].OID = `${device.deviceOID}.${i + 1}`;
+  })
+}
 
 const saveConfig = () => {
   try {
+    config.devices.forEach((device, index) => {
+      updateOIDs(device, index);
+    })
+
     const output = [
-      {
-        generalOID: config.generalOID
-      },
-      ...config.devices.map(device => {
-        const deviceConfig = {
-          deviceId: device.deviceId,
+      {generalOID: config.generalOID},
+      ...config.devices.map((device, index) => {
+        updateOIDs(device, index);
+
+        return {
+          deviceID: device.deviceID,
           deviceOID: device.deviceOID,
-        }
-
-        deviceParams.forEach((param) => {
-          deviceConfig[param] = {...device[param]};
-        })
-
-        return deviceConfig;
-      })
-    ];
+          ...Object.fromEntries(
+              DEVICE_TYPES[deviceTypeMap.value.get(index)].params.map(param => [
+                    param,
+                    {type: device[param].type, OID: device[param].OID}
+                  ]
+              )
+          )
+        };
+      }),
+    ]
 
     const jsonString = stringify(output, {maxLength: 125})
     const blob = new Blob([jsonString], {type: 'application/json'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `energy-config-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
+    a.download = `config-${Date.now()}.json`;
     a.click();
-    document.body.removeChild(a);
     URL.revokeObjectURL(url);
   } catch (error) {
-    console.error('Save error:', error);
+    console.error('ошибка сохранения:', error);
     alert('Ошибка при сохранении конфигурации');
   }
 };
+
+const getDeviceType = index => {
+  return deviceTypeMap.value.get(index) || 'CONDITIONER';
+}
 </script>
 
 <template>
@@ -110,12 +111,17 @@ const saveConfig = () => {
     <header class="app-header">
       <h1>Конфигуратор устройств энергомониторинга</h1>
       <div class="actions">
-        <button @click="addDevice" class="btn primary">
-          ➕ Добавить устройство
-        </button>
         <button @click="saveConfig" class="btn success">
           💾 Сохранить конфиг
         </button>
+        <div class="device-types">
+          <button @click="addDevice" class="btn primary"> ➕ Добавить устройство</button>
+          <select v-model="newDeviceType">
+            <option v-for="(type, key) in DEVICE_TYPES" :value="key" :key="key">
+              {{ type.name }}
+            </option>
+          </select>
+        </div>
       </div>
     </header>
 
@@ -126,36 +132,44 @@ const saveConfig = () => {
       </div>
     </div>
 
-    <div class="device-tabs">
-      <div
-          v-for="(device, index) in config.devices"
-          :key="index"
-          class="tab"
-          :class="{ active: activeDeviceIndex === index }"
-          @click="activeDeviceIndex = index"
-      >
-        Устройство {{ index + 1 }}
-        <button
-            v-if="config.devices.length > 1"
-            @click.stop="removeDevice(index)"
-            class="close-btn"
-        >
-          ×
-        </button>
+    <div class="device-tabs-container">
+      <div class="device-tabs-scroll">
+        <div class="device-tabs">
+          <div
+              v-for="(_, index) in config.devices"
+              :key="index"
+              class="tab"
+              :class="{ active: activeDeviceIndex === index }"
+              @click="activeDeviceIndex = index"
+          >
+            <span class="tab-label"> Устройство {{ index + 1 }} ({{ DEVICE_TYPES[getDeviceType(index)].name }}) </span>
+            <button
+                v-if="config.devices.length > 1"
+                @click.stop="removeDevice(index)"
+                class="close-btn"
+            >
+              ×
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="device-form" v-if="config.devices.length > 0">
+    <div class="device-form" v-if="activeDeviceIndex !== -1">
       <fieldset>
         <legend>Основные параметры устройства</legend>
         <div class="form-grid">
           <div class="form-group">
-            <label>Device OID:</label>
-            <input v-model="config.devices[activeDeviceIndex].deviceOID" type="text">
-          </div>
-          <div class="form-group">
             <label>Device ID:</label>
             <input v-model="config.devices[activeDeviceIndex].deviceId" type="text">
+          </div>
+          <div class="form-group">
+            <label>Device OID:</label>
+            <input
+                v-model="config.devices[activeDeviceIndex].deviceOID"
+                @change="updateOIDs(config.devices[activeDeviceIndex], activeDeviceIndex)"
+                type="text"
+            >
           </div>
         </div>
       </fieldset>
@@ -163,13 +177,17 @@ const saveConfig = () => {
       <fieldset>
         <legend>Параметры устройства</legend>
         <div class="form-grid">
-          <div class="form-group" v-for="param in deviceParams">
+          <div
+              class="form-group"
+              v-for="param in DEVICE_TYPES[getDeviceType(activeDeviceIndex)].params"
+              :key="param"
+          >
             <label>{{ param }}:</label>
             <div class="param-control">
               <select v-model="config.devices[activeDeviceIndex][param].type">
                 <option v-for="type in DATA_TYPES" :value="type">{{ type }}</option>
               </select>
-              <input v-model="config.devices[activeDeviceIndex][param].OID" type="number">
+              <input v-model="config.devices[activeDeviceIndex][param].OID">
             </div>
           </div>
         </div>
@@ -209,6 +227,11 @@ const saveConfig = () => {
   input, select {
     color-scheme: dark;
   }
+}
+
+.device-types {
+  display: flex;
+  gap: 10px;
 }
 
 .config-app {
@@ -251,21 +274,34 @@ const saveConfig = () => {
 
 }
 
+.device-tabs-container {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.device-tabs-scroll {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding-bottom: 2px;
+}
+
 .device-tabs {
-  display: flex;
+  display: inline-flex;
   gap: 15px;
+  min-width: 100%;
   margin-bottom: 20px;
 }
 
 .tab {
-  padding: 8px 16px;
+  position: relative;
+  padding: 12px 30px;
   background: var(--tab-bg);
   border-radius: 4px 4px 0 0;
   border: 1px solid transparent;
   cursor: pointer;
-  position: relative;
   white-space: nowrap;
   color: var(--text-color);
+  transition: background 0.2s;
 }
 
 .tab.active {
@@ -275,17 +311,31 @@ const saveConfig = () => {
   border-bottom-color: transparent;
 }
 
+.tab-label {
+  display: block;
+  text-overflow: ellipsis;
+}
+
+.device-tabs-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.device-tabs-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
 .close-btn {
   position: absolute;
-  top: -10px;
-  right: -10px;
-  background-color: #FF4444FF;
+  top: 0;
+  right: 0;
+  background-color: red;
   color: white;
   border: none;
   border-radius: 50%;
-  width: 20px;
-  height: 23px;
-  font-size: 10px;
+  width: 15px;
+  height: 28px;
+  font-size: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -321,7 +371,7 @@ legend {
 }
 
 .form-group {
-  margin-bottom: 10px;
+  margin-bottom: 15px;
 }
 
 .form-group label {
