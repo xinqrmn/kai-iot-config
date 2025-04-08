@@ -20,11 +20,24 @@ const updateDeviceOIDs = () => {
   })
 }
 
-watch(() => config.generalOID, updateDeviceOIDs);
+const updateParamsOIDs = (device, index) => {
+  const type = deviceTypeMap.value.get(index);
+  if (!type || !DEVICE_TYPES[type]) return
+
+  DEVICE_TYPES[type]?.params?.forEach((param, i) => {
+    device[param].OID = `${device.deviceOID}.${i + 1}`;
+  })
+}
+
+watch(() => config.generalOID, () => {
+  updateDeviceOIDs();
+  config.devices.forEach((device, index) => updateParamsOIDs(device));
+})
+watch(() => config.devices.length, updateDeviceOIDs);
 
 const createDeviceTemplate = type => {
   const device = {
-    deviceOID: '', // config.generalOID,  .1.3.6.1.4.1.999 + id устройства начиная с 1 (.1.3.6.1.4.1.999.1, .1.3.6.1.4.1.999.2 и так далее)
+    deviceOID: '',
     deviceID: '',
   }
 
@@ -42,12 +55,13 @@ const addDevice = () => {
   deviceTypeMap.value.set(config.devices.length - 1, newDeviceType.value)
   activeDeviceIndex.value = config.devices.length - 1;
   updateDeviceOIDs()
+  updateParamsOIDs(newDevice, config.devices.length - 1)
 };
 
 const removeDevice = (index) => {
   if (config.devices.length <= 1) return;
 
-  const deletedDevice = config.devices.splice(index, 1)[0];
+  config.devices.splice(index, 1);
   const newMap = new Map()
 
   config.devices.forEach((device, newIndex) => {
@@ -66,25 +80,16 @@ const removeDevice = (index) => {
   );
 };
 
-const updateOIDs = (device, index) => {
-  const type = deviceTypeMap.value.get(index);
-  DEVICE_TYPES[type].params.forEach((param, i) => {
-    device[param].OID = `${device.deviceOID}.${i + 1}`;
-  })
-  updateDeviceOIDs()
-}
+
 
 const saveConfig = () => {
   try {
-    config.devices.forEach((device, index) => {
-      updateOIDs(device, index);
-    })
+    updateParamsOIDs()
+    config.devices.forEach((device, index) => updateParamsOIDs(device, index))
 
     const output = [
       {generalOID: config.generalOID},
       ...config.devices.map((device, index) => {
-        updateOIDs(device, index);
-
         return {
           deviceOID: device.deviceOID,
           deviceID: device.deviceID,
@@ -405,10 +410,9 @@ input {
 }
 
 .param-control {
-  display: grid;
-  grid-template-columns: 1fr 80px;
-  gap: 8px;
+  display: flex;
   align-items: center;
+  gap: 8px;
 }
 
 select {
