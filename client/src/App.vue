@@ -1,5 +1,5 @@
 <script setup>
-import {ref, reactive} from 'vue';
+import {ref, reactive, watch} from 'vue';
 import stringify from "json-stringify-pretty-compact";
 import {DEVICE_TYPES} from "./hooks/device-types.js";
 
@@ -14,10 +14,18 @@ const activeDeviceIndex = ref(-1);
 const newDeviceType = ref('CONDITIONER');
 const deviceTypeMap = ref(new Map());
 
+const updateDeviceOIDs = () => {
+  config.devices.forEach((device, index) => {
+      device.deviceOID = `${config.generalOID}.${index + 1}`;
+  })
+}
+
+watch(() => config.generalOID, updateDeviceOIDs);
+
 const createDeviceTemplate = type => {
   const device = {
+    deviceOID: '', // config.generalOID,  .1.3.6.1.4.1.999 + id устройства начиная с 1 (.1.3.6.1.4.1.999.1, .1.3.6.1.4.1.999.2 и так далее)
     deviceID: '',
-    deviceOID: ''
   }
 
   DEVICE_TYPES[type].params.forEach(param => {
@@ -27,11 +35,13 @@ const createDeviceTemplate = type => {
   return device;
 }
 
+
 const addDevice = () => {
   const newDevice = createDeviceTemplate(newDeviceType.value)
   config.devices.push(newDevice)
   deviceTypeMap.value.set(config.devices.length - 1, newDeviceType.value)
   activeDeviceIndex.value = config.devices.length - 1;
+  updateDeviceOIDs()
 };
 
 const removeDevice = (index) => {
@@ -48,6 +58,7 @@ const removeDevice = (index) => {
   })
 
   deviceTypeMap.value = newMap;
+  updateDeviceOIDs()
 
   activeDeviceIndex.value = Math.min(
       Math.max(0, activeDeviceIndex.value - 1),
@@ -60,6 +71,7 @@ const updateOIDs = (device, index) => {
   DEVICE_TYPES[type].params.forEach((param, i) => {
     device[param].OID = `${device.deviceOID}.${i + 1}`;
   })
+  updateDeviceOIDs()
 }
 
 const saveConfig = () => {
@@ -74,8 +86,8 @@ const saveConfig = () => {
         updateOIDs(device, index);
 
         return {
-          deviceID: device.deviceID,
           deviceOID: device.deviceOID,
+          deviceID: device.deviceID,
           ...Object.fromEntries(
               DEVICE_TYPES[deviceTypeMap.value.get(index)].params.map(param => [
                     param,
@@ -148,7 +160,7 @@ const getDeviceType = index => {
                 @click.stop="removeDevice(index)"
                 class="close-btn"
             >
-              ×
+              X
             </button>
           </div>
         </div>
@@ -329,7 +341,7 @@ const getDeviceType = index => {
   position: absolute;
   top: 0;
   right: 0;
-  background-color: red;
+  background-color: firebrick;
   color: white;
   border: none;
   border-radius: 50%;
