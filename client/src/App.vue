@@ -161,7 +161,7 @@ const getDeviceType = index => {
         <div class="form-grid">
           <div class="form-group">
             <label>Device ID:</label>
-            <input v-model="config.devices[activeDeviceIndex].deviceId" type="text">
+            <input v-model="config.devices[activeDeviceIndex].deviceID" type="text">
           </div>
           <div class="form-group">
             <label>Device OID:</label>
