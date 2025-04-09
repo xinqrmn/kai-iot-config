@@ -6,7 +6,7 @@ import {DEVICE_TYPES} from "./hooks/device-types.js";
 const DATA_TYPES = ['INTEGER', 'GAUGE', 'COUNTER', 'TIMETICKS', 'IPADDRESS', 'OBJECTID', 'STRING'];
 
 const config = reactive({
-  generalOID: ".1.3.6.1.4.1.999",
+  generalOID: ".1.3.6.1.4.1.46667",
   devices: []
 });
 
@@ -14,35 +14,36 @@ const activeDeviceIndex = ref(-1);
 const newDeviceType = ref('CONDITIONER');
 const deviceTypeMap = ref(new Map());
 
-const updateDeviceOIDs = () => {
-  config.devices.forEach((device, index) => {
-      device.deviceOID = `${config.generalOID}.${index + 1}`;
-  })
+const generateParamOID = (device, paramIndex) => {
+  return `${device.deviceOID}.${paramIndex + 1}`;
 }
 
-const updateParamsOIDs = (device, index) => {
+const updateParamsOIDs = (device) => {
+  const index = config.devices.indexOf(device);
   const type = deviceTypeMap.value.get(index);
-  if (!type || !DEVICE_TYPES[type]) return
 
   DEVICE_TYPES[type]?.params?.forEach((param, i) => {
-    device[param].OID = `${device.deviceOID}.${i + 1}`;
+    if (!device[param].isCustom)
+      device[param].OID = generateParamOID(device, i);
   })
 }
 
-watch(() => config.generalOID, () => {
-  updateDeviceOIDs();
-  config.devices.forEach((device, index) => updateParamsOIDs(device));
-})
-watch(() => config.devices.length, updateDeviceOIDs);
+watch(() => config.devices.map(device => device.deviceOID), () => {
+  config.devices.forEach(device => updateParamsOIDs(device));
+}, {deep: true});
 
 const createDeviceTemplate = type => {
   const device = {
-    deviceOID: '',
+    deviceOID: `${config.generalOID}.${config.devices.length + 1}`,
     deviceID: '',
   }
 
-  DEVICE_TYPES[type].params.forEach(param => {
-    device[param] = {type: 'INTEGER', OID: 0};
+  DEVICE_TYPES[type].params.forEach((param, i) => {
+    device[param] = {
+      type: 'INTEGER',
+      OID: generateParamOID(device, i),
+      isCustom: false,
+    };
   })
 
   return device;
@@ -54,33 +55,17 @@ const addDevice = () => {
   config.devices.push(newDevice)
   deviceTypeMap.value.set(config.devices.length - 1, newDeviceType.value)
   activeDeviceIndex.value = config.devices.length - 1;
-  updateDeviceOIDs()
-  updateParamsOIDs(newDevice, config.devices.length - 1)
 };
 
 const removeDevice = (index) => {
   if (config.devices.length <= 1) return;
 
   config.devices.splice(index, 1);
-  const newMap = new Map()
-
-  config.devices.forEach((device, newIndex) => {
-    const oldIndex = newIndex >= index ? newIndex + 1 : newIndex;
-    if (deviceTypeMap.value.has(oldIndex)) {
-      newMap.set(newIndex, deviceTypeMap.value.get(oldIndex));
-    }
-  })
+  const newMap = new Map([...deviceTypeMap.value].filter(([i]) => i !== index));
 
   deviceTypeMap.value = newMap;
-  updateDeviceOIDs()
-
-  activeDeviceIndex.value = Math.min(
-      Math.max(0, activeDeviceIndex.value - 1),
-      config.devices.length - 1
-  );
+  activeDeviceIndex.value = Math.min(index, config.devices.length - 1);
 };
-
-
 
 const saveConfig = () => {
   try {
@@ -89,19 +74,21 @@ const saveConfig = () => {
 
     const output = [
       {generalOID: config.generalOID},
-      ...config.devices.map((device, index) => {
-        return {
-          deviceOID: device.deviceOID,
-          deviceID: device.deviceID,
-          ...Object.fromEntries(
-              DEVICE_TYPES[deviceTypeMap.value.get(index)].params.map(param => [
-                    param,
-                    {type: device[param].type, OID: device[param].OID}
-                  ]
-              )
-          )
-        };
-      }),
+      ...config.devices.map((device, index) => ({
+        deviceOID: device.deviceOID,
+        deviceID: device.deviceID,
+        ...Object.fromEntries(
+            DEVICE_TYPES[deviceTypeMap.value.get(index)].params.map(param => [
+                  param,
+                  {
+                    type: device[param].type,
+                    OID: device[param].OID
+                  }
+                ]
+            )
+        )
+
+      })),
     ]
 
     const jsonString = stringify(output, {maxLength: 125})
@@ -121,6 +108,10 @@ const saveConfig = () => {
 const getDeviceType = index => {
   return deviceTypeMap.value.get(index) || 'CONDITIONER';
 }
+
+const markAsCustom = (device, param) => {
+  device[param].isCustom = true;
+};
 </script>
 
 <template>
@@ -184,7 +175,6 @@ const getDeviceType = index => {
             <label>Device OID:</label>
             <input
                 v-model="config.devices[activeDeviceIndex].deviceOID"
-                @change="updateOIDs(config.devices[activeDeviceIndex], activeDeviceIndex)"
                 type="text"
             >
           </div>
@@ -204,7 +194,10 @@ const getDeviceType = index => {
               <select v-model="config.devices[activeDeviceIndex][param].type">
                 <option v-for="type in DATA_TYPES" :value="type">{{ type }}</option>
               </select>
-              <input v-model="config.devices[activeDeviceIndex][param].OID">
+              <input
+                  v-model="config.devices[activeDeviceIndex][param].OID"
+                  @input="markAsCustom(config.devices[activeDeviceIndex], param)"
+              >
             </div>
           </div>
         </div>
