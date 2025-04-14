@@ -49,7 +49,6 @@ const createDeviceTemplate = type => {
   return device;
 }
 
-
 const addDevice = () => {
   const newDevice = createDeviceTemplate(newDeviceType.value)
   config.devices.push(newDevice)
@@ -87,7 +86,6 @@ const saveConfig = () => {
                 ]
             )
         )
-
       })),
     ]
 
