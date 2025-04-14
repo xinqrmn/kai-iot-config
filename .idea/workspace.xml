@@ -6,6 +6,8 @@
   <component name="ChangeListManager">
     <list default="true" id="fe103bbf-3a0f-48ab-9965-1e17ecdd6289" name="Changes" comment="Changed port">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/App.vue" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/App.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/hooks/device-types.js" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/hooks/device-types.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -64,6 +66,7 @@
 }</component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\1\Desktop\kai-iot-configurator\boundle" />
       <recent name="C:\Users\1\Desktop\kai-iot-configurator\client\src\assets" />
     </key>
   </component>
@@ -111,7 +114,7 @@
       <workItem from="1744091146977" duration="21667000" />
       <workItem from="1744175900187" duration="15878000" />
       <workItem from="1744348768207" duration="14930000" />
-      <workItem from="1744608043997" duration="8495000" />
+      <workItem from="1744608043997" duration="9641000" />
     </task>
     <task id="LOCAL-00001" summary="Fixed docker-compose.yml and Dockerfile">
       <option name="closed" value="true" />

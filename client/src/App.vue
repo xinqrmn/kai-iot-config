@@ -3,7 +3,7 @@ import {ref, reactive, watch} from 'vue';
 import stringify from "json-stringify-pretty-compact";
 import {DEVICE_TYPES} from "./hooks/device-types.js";
 
-const DATA_TYPES = ['INTEGER', 'GAUGE', 'COUNTER', 'TIMETICKS', 'IPADDRESS', 'OBJECTID', 'STRING'];
+const DATA_TYPES = ['STRING', 'GAUGE', 'COUNTER', 'TIMETICKS', 'IPADDRESS', 'OBJECTID', 'INTEGER'];
 
 const config = reactive({
   generalOID: ".1.3.6.1.4.1.46667",
@@ -40,7 +40,7 @@ const createDeviceTemplate = type => {
 
   DEVICE_TYPES[type].params.forEach((param, i) => {
     device[param] = {
-      type: 'INTEGER',
+      type: type === 'ALARMS' ? 'STRING' : 'INTEGER',
       OID: generateParamOID(device, i),
       isCustom: false,
     };
