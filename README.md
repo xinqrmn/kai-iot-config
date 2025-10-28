@@ -29,14 +29,6 @@ Designed for flexibility and reusability in IoT environments.
 
 ---
 
-## 🧠 What I Learned
-
-- Designing type-safe forms  
-- Managing complex dynamic data structures  
-- Building small-scale microservices for IoT systems
-
----
-
 ## 🔗 Links
 
 - **Repository:** [SNMP Config Generator on GitHub](https://github.com/xinqrmn/kai-iot-config)
